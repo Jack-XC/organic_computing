@@ -1,18 +1,51 @@
+patches-own [pheromones]
+
 to patch-setup
   ; Load image file with color information
   import-pcolors "patch.png"
+  ; Give patches pheromones
+end
+
+to setup
+  clear-all
+  create-turtles 1
+  ask turtles [set color red]
+  ask turtles [set shape "bug"]
+  ; Random start (in their home) for the ants
+  ask turtles [setxy (-(random 16)-(10)) (-(random 5)-(22))]
+  patch-setup
+end
+
+to setup-way-home
+end
+
+to go
+  ask turtles[
+    if color = red [search-for-food]
+    if color = yellow [go-home]
+  ]
+  ;  ask turtles [search-and-pick-up]
+  ;  ask turtles [find-pile]
+  ;  ask turtles [find-empty-neighbour-and-drop]
+end
+
+to go-home
 end
 
 to wiggle
+  fd .5
   rt random 40
   lt random 40
-  fd 1
-  if not can-move? 1 [ rt 180 ]
 end
 
-to search-and-pick-up
+to search-for-food
+  set-pheromones
   ; Find the green spot
-  if pcolor = 54.9 [set pcolor black rt 180 fd 1 stop]
+  if pcolor = 54.9 [set color yellow ; yellow = carrying food
+                    set pcolor black
+                    rt 180
+;                    fd 1
+                    stop]
 
   ; Don't run against the walls
   if [pcolor] of patch-ahead 1 > 31
@@ -24,9 +57,11 @@ to search-and-pick-up
       ([pcolor] of patch-ahead -2 > 31
       and [pcolor] of patch-ahead -2 < 39)
       ;then
-      [lt 90 fd 1 stop]
+      [lt 90 ;fd 1
+       stop]
       ;else
-      [lt 180 fd 1 stop]
+      [lt 180 ;fd 1
+       stop]
 
       ifelse ([pcolor] of patch-left-and-ahead 90 2 > 31
       and [pcolor] of patch-left-and-ahead 90 2 < 39)
@@ -34,55 +69,18 @@ to search-and-pick-up
       ([pcolor] of patch-ahead -2 > 31
       and [pcolor] of patch-ahead -2 < 39)
       ;then
-      [rt 90 fd 1 stop]
+      [rt 90 ;fd 1
+       stop]
       ;else
-      [rt 180 fd 1 stop] ]
+      [rt 180 ;fd 1
+       stop] ]
   wiggle
 end
 
-to rotate
-  rt random 180 fd 1 stop
-end
+to set-pheromones
+  set pheromones pheromones + 1
+  set pcolor pheromones
 
-to find-pile
-  wiggle
-  if pcolor = yellow [stop]
-  find-pile
-end
-
-to find-empty-neighbour-and-drop
-  wiggle
-  if pcolor = black [set pcolor yellow stop]
-  find-empty-neighbour-and-drop
-end
-
-to move_away
-  wiggle
-  wiggle
-  wiggle
-  ; find a better solution for this s***
-  if pcolor = black [stop]
-  if pcolor = 34.6 [stop]
-  if pcolor = 33.2 [stop]
-  if pcolor = 32.8 [stop]
-end
-
-to go
-  ask turtles [search-and-pick-up]
-  ;  ask turtles [search-and-pick-up]
-  ;  ask turtles [find-pile]
-  ;  ask turtles [find-empty-neighbour-and-drop]
-
-end
-
-to setup
-  clear-all
-  create-turtles 1
-  ask turtles [set color red]
-  ask turtles [set shape "bug"]
-  ; Random start (in their home) for the ants
-  ask turtles [setxy (-(random 16)-(10)) (-(random 5)-(22))]
-  patch-setup
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
