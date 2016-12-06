@@ -1,15 +1,14 @@
 patches-own [pherom]
-globals [decay]
+globals [pherom_count pherom_count_old pherom_best pherom_best_x pherom_best_y dest_x dest_y]
 
 to patch-setup
   ; Load image file with color information
   import-pcolors "patch.png"
-  ; Give patches pherom
 end
 
 to setup
   clear-all
-  create-turtles 12
+  create-turtles 60
   ask turtles [set color red]
   ask turtles [set shape "bug"]
   ; Random start (in their home) for the ants
@@ -17,14 +16,11 @@ to setup
   patch-setup
 end
 
-to setup-way-home
-end
-
 to go
   ask patches[
     if (pherom > 0)
     [
-      set pherom pherom - 1
+      set pherom pherom - 3
       if pcolor < 10 and pcolor >= 0
       [ ;visualisation
         if pherom <= 50 [ set pcolor 0 ]
@@ -40,40 +36,106 @@ to go
     ]
   ]
   ask turtles[
-    if color = red [search-for-food]
-    if color = yellow [go-home]
-  ]
-  ;  ask turtles [search-and-pick-up]
-  ;  ask turtles [find-pile]
-  ;  ask turtles [find-empty-neighbour-and-drop]
+    set pherom_count 0
+    set pherom_best 0
+    set pherom_best_x 0
+    set pherom_best_y 0
+    ask patches in-cone 5 60 [
+      set pherom_count pherom_count + pherom
+      if pherom > pherom_best
+        [set pherom_best pherom
+         set pherom_best_x pxcor
+         set pherom_best_y pycor]
+      ]
+    if color = yellow
+    [ ifelse ([pcolor] of patch-ahead 2 = 104.7
+          or [pcolor] of patch-right-and-ahead 90 2 = 104.7
+          or [pcolor] of patch-left-and-ahead 90 2 = 104.7
+          or [pcolor] of patch-right-and-ahead 45 2 = 104.7
+          or [pcolor] of patch-left-and-ahead 45 2 = 104.7)
+        [;show "Found home!"
+        set-pherom
+        set-pherom
+        set dest_x pxcor
+        set dest_y pycor
+        goto-destination
+        set-pherom
+        set-pherom
+        set-pherom]
+        [ go-home ] ]
+    if color = red
+    [   ifelse ([pcolor] of patch-ahead 2 = 54.9
+          or [pcolor] of patch-right-and-ahead 90 2 = 54.9
+          or [pcolor] of patch-left-and-ahead 90 2 = 54.9
+          or [pcolor] of patch-right-and-ahead 45 2 = 54.9
+          or [pcolor] of patch-left-and-ahead 45 2 = 54.9)
+        [;show "Found food!"
+        set-pherom
+        set dest_x pxcor
+        set dest_y pycor
+        goto-destination
+        set-pherom
+        set-pherom]
+        [ go-for-pherom ] ]
+      ]
+end
+
+to go-for-pherom
+  ifelse pherom_count > pherom_count_old
+        ;then
+        [ set pherom_count_old pherom_count follow-pherom] ;show "this one is better"]
+        ;else
+        [ ;search-for-food
+        ;  ask patches in-cone 3 180 [
+        ;    if pherom > pherom_best
+        ;     [set pherom_best pherom
+        ;      set pherom_best_x pxcor
+        ;      set pherom_best_y pycor]]
+        ifelse pherom_best < 50
+          [search-for-food]
+          [follow-pherom]
+        ]
 end
 
 to go-home
+  ;show "coming home"
   set-pherom
   if pcolor = 104.7
-  [
-    set color red
-    rt 180
-    stop
-  ]
-  random-walk
+  [ set color red rt 180 stop ]
+  go-for-pherom
+;  random-walk
+end
+
+to follow-pherom
+  ;show "I follow"
+  facexy pherom_best_x pherom_best_y
+  check-walls
+  wiggle
+end
+
+to goto-destination
+  facexy dest_x dest_y
+  check-walls
+  fd 2
 end
 
 to search-for-food
-  ;set-pherom
+  ;show "fooood"
+  set pherom_count 0
+  set pherom_count_old 0
   ; Find the green spot
-  if pcolor = 54.9
-  [
-    set color yellow
-    rt 180
-    stop
-  ]
   random-walk
 end
 
 to random-walk
+  check-walls
+end
+
+to check-walls
+    if pcolor = 54.9
+    [set color yellow]
   ; Don't run against the walls
-  if [pcolor] of patch-ahead 1 > 31 and [pcolor] of patch-ahead 1 < 39
+  ifelse [pcolor] of patch-ahead 1 > 31 and [pcolor] of patch-ahead 1 < 39
   [
     ; Get out of those nasty corners
     ifelse ([pcolor] of patch-right-and-ahead 90 2 > 31
@@ -82,9 +144,9 @@ to random-walk
       ([pcolor] of patch-ahead -2 > 31
       and [pcolor] of patch-ahead -2 < 39)
       ;then
-      [lt 90 stop]
+      [bk 1 lt 90 stop]
       ;else
-      [lt 180 stop]
+      [bk 1 lt 180 stop]
 
       ifelse ([pcolor] of patch-left-and-ahead 90 2 > 31
       and [pcolor] of patch-left-and-ahead 90 2 < 39)
@@ -92,22 +154,42 @@ to random-walk
       ([pcolor] of patch-ahead -2 > 31
       and [pcolor] of patch-ahead -2 < 39)
       ;then
-      [rt 90 stop]
+      [bk 1 rt 90 stop]
       ;else
-      [rt 180 stop]
+      [bk 1 rt 180 stop]
   ]
-  wiggle
+  [wiggle]
 end
 
 to wiggle
-  fd .5
   rt random 40
   lt random 40
+  fd .5
+end
+
+to home-cone
+  ask turtles[
+    ask patches in-cone 5 180 [
+        if pcolor = 104.7
+        [set pherom_best 0
+        set pherom_best_x pxcor
+        set pherom_best_y pycor]]
+    follow-pherom]
+end
+
+to food-cone
+  ask turtles[
+    ask patches in-cone 5 180 [
+        if pcolor = 54.9
+        [set pherom_best 0
+        set pherom_best_x pxcor
+        set pherom_best_y pycor]]
+    follow-pherom]
 end
 
 to set-pherom
-    set pherom pherom + 100
-
+    if pcolor != 54.9
+    [set pherom pherom + 100]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
