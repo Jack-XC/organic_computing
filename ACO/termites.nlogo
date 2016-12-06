@@ -1,14 +1,15 @@
-patches-own [pheromones]
+patches-own [pherom]
+globals [decay]
 
 to patch-setup
   ; Load image file with color information
   import-pcolors "patch.png"
-  ; Give patches pheromones
+  ; Give patches pherom
 end
 
 to setup
   clear-all
-  create-turtles 1
+  create-turtles 12
   ask turtles [set color red]
   ask turtles [set shape "bug"]
   ; Random start (in their home) for the ants
@@ -20,6 +21,24 @@ to setup-way-home
 end
 
 to go
+  ask patches[
+    if (pherom > 0)
+    [
+      set pherom pherom - 1
+      if pcolor < 10 and pcolor >= 0
+      [ ;visualisation
+        if pherom <= 50 [ set pcolor 0 ]
+        if pherom >= 50 and pherom < 100 [ set pcolor 1 ]
+        if pherom >= 100 and pherom < 150 [ set pcolor 2 ]
+        if pherom >= 150 and pherom < 200 [ set pcolor 3 ]
+        if pherom >= 200 and pherom < 250 [ set pcolor 4 ]
+        if pherom >= 250 and pherom < 300 [ set pcolor 5 ]
+        if pherom >= 350 and pherom < 400 [ set pcolor 6 ]
+        if pherom >= 400 and pherom < 450 [ set pcolor 7 ]
+        if pherom >= 450 [ set pcolor 8 ]
+      ]
+    ]
+  ]
   ask turtles[
     if color = red [search-for-food]
     if color = yellow [go-home]
@@ -30,6 +49,54 @@ to go
 end
 
 to go-home
+  set-pherom
+  if pcolor = 104.7
+  [
+    set color red
+    rt 180
+    stop
+  ]
+  random-walk
+end
+
+to search-for-food
+  ;set-pherom
+  ; Find the green spot
+  if pcolor = 54.9
+  [
+    set color yellow
+    rt 180
+    stop
+  ]
+  random-walk
+end
+
+to random-walk
+  ; Don't run against the walls
+  if [pcolor] of patch-ahead 1 > 31 and [pcolor] of patch-ahead 1 < 39
+  [
+    ; Get out of those nasty corners
+    ifelse ([pcolor] of patch-right-and-ahead 90 2 > 31
+      and [pcolor] of patch-right-and-ahead 90 2 < 39)
+      or
+      ([pcolor] of patch-ahead -2 > 31
+      and [pcolor] of patch-ahead -2 < 39)
+      ;then
+      [lt 90 stop]
+      ;else
+      [lt 180 stop]
+
+      ifelse ([pcolor] of patch-left-and-ahead 90 2 > 31
+      and [pcolor] of patch-left-and-ahead 90 2 < 39)
+      or
+      ([pcolor] of patch-ahead -2 > 31
+      and [pcolor] of patch-ahead -2 < 39)
+      ;then
+      [rt 90 stop]
+      ;else
+      [rt 180 stop]
+  ]
+  wiggle
 end
 
 to wiggle
@@ -38,48 +105,8 @@ to wiggle
   lt random 40
 end
 
-to search-for-food
-  set-pheromones
-  ; Find the green spot
-  if pcolor = 54.9 [set color yellow ; yellow = carrying food
-                    set pcolor black
-                    rt 180
-;                    fd 1
-                    stop]
-
-  ; Don't run against the walls
-  if [pcolor] of patch-ahead 1 > 31
-  and [pcolor] of patch-ahead 1 < 39
-  ; Get out of those nasty corners
-    [ ifelse ([pcolor] of patch-right-and-ahead 90 2 > 31
-      and [pcolor] of patch-right-and-ahead 90 2 < 39)
-      or
-      ([pcolor] of patch-ahead -2 > 31
-      and [pcolor] of patch-ahead -2 < 39)
-      ;then
-      [lt 90 ;fd 1
-       stop]
-      ;else
-      [lt 180 ;fd 1
-       stop]
-
-      ifelse ([pcolor] of patch-left-and-ahead 90 2 > 31
-      and [pcolor] of patch-left-and-ahead 90 2 < 39)
-      or
-      ([pcolor] of patch-ahead -2 > 31
-      and [pcolor] of patch-ahead -2 < 39)
-      ;then
-      [rt 90 ;fd 1
-       stop]
-      ;else
-      [rt 180 ;fd 1
-       stop] ]
-  wiggle
-end
-
-to set-pheromones
-  set pheromones pheromones + 1
-  set pcolor pheromones
+to set-pherom
+    set pherom pherom + 100
 
 end
 @#$#@#$#@
