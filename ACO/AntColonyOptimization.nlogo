@@ -1,14 +1,49 @@
-patches-own [pherom]
-globals [pherom_count pherom_count_old pherom_best pherom_best_x pherom_best_y dest_x dest_y]
+patches-own [patch_ph_food patch_ph_home wall? home? food?]
+
+;Intensity of food and home pheromones
+turtles-own [ant_ph_food ant_ph_home]
 
 to patch-setup
-  ; Load image file with color information
+  ;Load image file with color information
   import-pcolors "patch.png"
+
+  ask patches
+  [
+    ;Get rid of these mixed colors in food
+    if pcolor = 42.7 or pcolor = 53.6 or pcolor = 41.9
+      [set pcolor 54.9]
+
+    ;Get rid of these mixed colors in home
+    if pcolor = 133
+      [set pcolor 104.7]
+
+    ;Mixed colors are okay for walls
+    ;Walls
+    ifelse pcolor > 31 and pcolor < 39
+      ;then
+      [set wall? true]
+      ;else
+      [set wall? false]
+
+    ;This is home
+    ifelse pcolor = 104.7
+      ;then
+      [set home? true]
+      ;else
+      [set home? false]
+
+    ;This is food
+    ifelse pcolor = 54.9
+      ;then
+      [set food? true]
+      ;else
+      [set food? false]
+  ]
 end
 
 to setup
   clear-all
-  create-turtles 60
+  create-turtles 100
   ask turtles [set color red]
   ask turtles [set shape "bug"]
   ; Random start (in their home) for the ants
@@ -17,179 +52,224 @@ to setup
 end
 
 to go
-  ask patches[
-    if (pherom > 0)
+  update-ant
+  update-patch
+end
+
+to update-ant
+  ask turtles
+  [
+    ;Is this home?
+    if home?
     [
-      set pherom pherom - 3
-      if pcolor < 10 and pcolor >= 0
-      [ ;visualisation
-        if pherom <= 50 [ set pcolor 0 ]
-        if pherom >= 50 and pherom < 100 [ set pcolor 1 ]
-        if pherom >= 100 and pherom < 150 [ set pcolor 2 ]
-        if pherom >= 150 and pherom < 200 [ set pcolor 3 ]
-        if pherom >= 200 and pherom < 250 [ set pcolor 4 ]
-        if pherom >= 250 and pherom < 300 [ set pcolor 5 ]
-        if pherom >= 350 and pherom < 400 [ set pcolor 6 ]
-        if pherom >= 400 and pherom < 450 [ set pcolor 7 ]
-        if pherom >= 450 [ set pcolor 8 ]
-      ]
+      set ant_ph_home 100
+      set patch_ph_home ant_ph_home
+    ]
+
+    ;Is here food?
+    if food?
+    [
+      set ant_ph_food 100
+      set patch_ph_food ant_ph_food
+    ]
+
+    ;Do I carry food?
+    ifelse(color = violet)
+      ;then
+      ;I should go home!
+      [search-home]
+      ;else
+      ;I'm starving. Need some sweeet food!
+      [search-food]
+  ]
+end
+
+to update-patch
+
+  ;Pheromones fading away
+  diffuse patch_ph_home .1
+  diffuse patch_ph_food .1
+
+  ask patches
+  [
+    ;Home has always maximum pheromones (there are always some invisible not food searching ants like the queen)
+    if home?
+    [
+      set patch_ph_home 100
+    ]
+
+    ;Set upper bound to pheromones
+    if patch_ph_home > 100
+      [set patch_ph_home 100]
+    if patch_ph_food > 100
+      [set patch_ph_food 100]
+
+    ;Set lower bound to pheromones
+    if patch_ph_home < .5
+      [set patch_ph_home 0]
+    if patch_ph_food < .5
+      [set patch_ph_food 0]
+
+    ;Color my patches!
+    ;Food pheromones!
+    if (show_food_pheromones = true and show_home_pheromones = false)
+    or (show_food_pheromones = true and show_home_pheromones = true and patch_ph_food > patch_ph_home)
+    [
+      if not wall? and not food? and not home?
+        [set pcolor 20 + ((patch_ph_food / 100) * 9)]
+    ]
+
+    ;Home pheromones!
+    if (show_food_pheromones = false and show_home_pheromones = true)
+    or (show_food_pheromones = true and show_home_pheromones = true and patch_ph_food < patch_ph_home)
+    [
+      if not wall? and not food? and not home?
+        [set pcolor 80 + ((patch_ph_home / 100) * 9)]
+    ]
+
+    ;Walls don't need pheromones!
+    if wall?
+    [
+      set patch_ph_food 0
+      set patch_ph_home 0
     ]
   ]
-  ask turtles[
-    set pherom_count 0
-    set pherom_best 0
-    set pherom_best_x 0
-    set pherom_best_y 0
-    ask patches in-cone 5 60 [
-      set pherom_count pherom_count + pherom
-      if pherom > pherom_best
-        [set pherom_best pherom
-         set pherom_best_x pxcor
-         set pherom_best_y pycor]
-      ]
-    if color = yellow
-    [ ifelse ([pcolor] of patch-ahead 2 = 104.7
-          or [pcolor] of patch-right-and-ahead 90 2 = 104.7
-          or [pcolor] of patch-left-and-ahead 90 2 = 104.7
-          or [pcolor] of patch-right-and-ahead 45 2 = 104.7
-          or [pcolor] of patch-left-and-ahead 45 2 = 104.7)
-        [;show "Found home!"
-        set-pherom
-        set-pherom
-        set dest_x pxcor
-        set dest_y pycor
-        goto-destination
-        set-pherom
-        set-pherom
-        set-pherom]
-        [ go-home ] ]
-    if color = red
-    [   ifelse ([pcolor] of patch-ahead 2 = 54.9
-          or [pcolor] of patch-right-and-ahead 90 2 = 54.9
-          or [pcolor] of patch-left-and-ahead 90 2 = 54.9
-          or [pcolor] of patch-right-and-ahead 45 2 = 54.9
-          or [pcolor] of patch-left-and-ahead 45 2 = 54.9)
-        [;show "Found food!"
-        set-pherom
-        set dest_x pxcor
-        set dest_y pycor
-        goto-destination
-        set-pherom
-        set-pherom]
-        [ go-for-pherom ] ]
-      ]
 end
 
-to go-for-pherom
-  ifelse pherom_count > pherom_count_old
+to search-home
+
+  ;Am I home?
+  ifelse home?
+    ;then
+    [
+      ;I need more food!
+      set color red
+      ;I don't carry food anymore!
+      set ant_ph_food 0
+      ;Go back and search for food!
+      rt 180
+    ]
+    ;else
+    [
+      ;Is home nearby?
+      ifelse one-of [home?] of neighbors
         ;then
-        [ set pherom_count_old pherom_count follow-pherom] ;show "this one is better"]
-        ;else
-        [ ;search-for-food
-        ;  ask patches in-cone 3 180 [
-        ;    if pherom > pherom_best
-        ;     [set pherom_best pherom
-        ;      set pherom_best_x pxcor
-        ;      set pherom_best_y pycor]]
-        ifelse pherom_best < 50
-          [search-for-food]
-          [follow-pherom]
+        [
+          ;Look to one of the home containing patches
+          set heading towards one-of neighbors with [home?]
+
+          ;Wiggle less because home is near!
+          wiggle 15
         ]
+        ;else
+        [
+          ;Declare the most left and the most right patch
+          let pleft patch-left-and-ahead 45 1
+          let pright patch-right-and-ahead 45 1
+
+          ;Are on the right side more home pheromones than on the left side?
+          if [patch_ph_home] of pright > [patch_ph_home] of pleft
+            [set pleft pright]
+
+          ;Are on the left/right side more food pheromones than ahead?
+          if [patch_ph_home] of pleft > [patch_ph_home] of patch-ahead 1
+            [set heading towards pleft]
+
+          ;Are the home pheromones on the left/right side equal to the pheromones ahead?
+          ifelse [patch_ph_home] of pleft = [patch_ph_home] of patch-ahead 1
+            ;then
+            [wiggle 45]
+            ;else
+            [wiggle 15]
+          check-walls
+        ]
+    ]
+  fd .75
+
+  ;Reduces the intensity of the food pheromones by Slider(reduce_intensity_by percent) of the strongest neighbor
+  set ant_ph_food [patch_ph_food] of max-one-of neighbors [patch_ph_food] * (1.0 - reduce_intensity_by)
+
+  ;Less food pheromones on this patch than the ant sets?
+  if patch_ph_food < ant_ph_food
+    [set patch_ph_food ant_ph_food]
 end
 
-to go-home
-  ;show "coming home"
-  set-pherom
-  if pcolor = 104.7
-  [ set color red rt 180 stop ]
-  go-for-pherom
-;  random-walk
-end
+to search-food
 
-to follow-pherom
-  ;show "I follow"
-  facexy pherom_best_x pherom_best_y
-  check-walls
-  wiggle
-end
+  ;Is here food?
+  ifelse food?
+    ;then
+    [
+      ;I found food!
+      set color violet
+      ;I'm now a food-carrier!
+      set ant_ph_home 0
+      ;Go back home!
+      rt 180
+    ]
+    ;else
+    [
+      ;Are there any neighbors with food?
+      ifelse one-of [food?] of neighbors
+        ;then
+        [
+          ;Look to one of the food containing neighbor patches
+          set heading towards one-of neighbors with [food?]
 
-to goto-destination
-  facexy dest_x dest_y
-  check-walls
-  fd 2
-end
+          ;Wiggle less because there is food ahead!
+          wiggle 15
+        ]
+        ;else
+        [
+          ;Declare the most left and the most right patch
+          let pleft patch-left-and-ahead 45 1
+          let pright patch-right-and-ahead 45 1
 
-to search-for-food
-  ;show "fooood"
-  set pherom_count 0
-  set pherom_count_old 0
-  ; Find the green spot
-  random-walk
-end
+          ;Are on the right side more food pheromones than on the left side?
+          if [patch_ph_food] of pright > [patch_ph_food] of pleft
+            [set pleft pright]
 
-to random-walk
-  check-walls
+          ;Are on the left/right side more food pheromones than ahead?
+          if [patch_ph_food] of pleft > [patch_ph_food] of patch-ahead 1
+            [set heading towards pleft]
+
+          ;Are the food pheromones on the left/right side equal to the pheromones ahead?
+          ifelse [patch_ph_food] of pleft = [patch_ph_food] of patch-ahead 1
+            ;then
+            [wiggle 45]
+            ;else
+            [wiggle 15]
+          check-walls
+        ]
+    ]
+  fd .75
+
+  ;Reduces the intensity of the home pheromones by Slider(reduce_intensity_by percent) of the strongest neighbor
+  set ant_ph_home [patch_ph_home] of max-one-of neighbors [patch_ph_home] * (1.0 - reduce_intensity_by)
+
+  ;Less home pheromones on this patch than the ant sets?
+  if patch_ph_home < ant_ph_home
+    [set patch_ph_home ant_ph_home]
 end
 
 to check-walls
-    if pcolor = 54.9
-    [set color yellow]
-  ; Don't run against the walls
-  ifelse [pcolor] of patch-ahead 1 > 31 and [pcolor] of patch-ahead 1 < 39
+  ;Is there a wall in my way?
+  while [[wall?] of patch-ahead 1]
   [
-    ; Get out of those nasty corners
-    ifelse ([pcolor] of patch-right-and-ahead 90 2 > 31
-      and [pcolor] of patch-right-and-ahead 90 2 < 39)
-      or
-      ([pcolor] of patch-ahead -2 > 31
-      and [pcolor] of patch-ahead -2 < 39)
+    ;I don't know where to go. Maybe I'll go right (random = 0) or I'll just go left (random = 1). *thinking*
+    ifelse random 2 < 1
       ;then
-      [bk 1 lt 90 stop]
+      ;Rotate right along this nice wall
+      [rt random 45]
       ;else
-      [bk 1 lt 180 stop]
-
-      ifelse ([pcolor] of patch-left-and-ahead 90 2 > 31
-      and [pcolor] of patch-left-and-ahead 90 2 < 39)
-      or
-      ([pcolor] of patch-ahead -2 > 31
-      and [pcolor] of patch-ahead -2 < 39)
-      ;then
-      [bk 1 rt 90 stop]
-      ;else
-      [bk 1 rt 180 stop]
+      ;Rotate left along this nice wall
+      [lt random 45]
   ]
-  [wiggle]
 end
 
-to wiggle
-  rt random 40
-  lt random 40
-  fd .5
-end
-
-to home-cone
-  ask turtles[
-    ask patches in-cone 5 180 [
-        if pcolor = 104.7
-        [set pherom_best 0
-        set pherom_best_x pxcor
-        set pherom_best_y pycor]]
-    follow-pherom]
-end
-
-to food-cone
-  ask turtles[
-    ask patches in-cone 5 180 [
-        if pcolor = 54.9
-        [set pherom_best 0
-        set pherom_best_x pxcor
-        set pherom_best_y pycor]]
-    follow-pherom]
-end
-
-to set-pherom
-    if pcolor != 54.9
-    [set pherom pherom + 100]
+to wiggle [angle]
+  rt random angle
+  lt random angle
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -220,10 +300,10 @@ ticks
 30.0
 
 BUTTON
-69
-60
-143
-93
+61
+52
+125
+85
 Setup
 setup
 NIL
@@ -237,10 +317,10 @@ NIL
 1
 
 BUTTON
-72
-113
-135
-146
+62
+109
+125
+142
 Go
 go
 T
@@ -252,6 +332,43 @@ NIL
 NIL
 NIL
 1
+
+SWITCH
+7
+164
+199
+197
+show_food_pheromones
+show_food_pheromones
+0
+1
+-1000
+
+SWITCH
+6
+214
+202
+247
+show_home_pheromones
+show_home_pheromones
+0
+1
+-1000
+
+SLIDER
+19
+277
+191
+310
+reduce_intensity_by
+reduce_intensity_by
+0.01
+0.05
+0.03
+.01
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
