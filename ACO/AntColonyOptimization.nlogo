@@ -3,7 +3,22 @@ patches-own [patch_ph_food patch_ph_home wall? home? food?]
 ;Intensity of food and home pheromones
 turtles-own [ant_ph_food ant_ph_home]
 
-to patch-setup
+to setup
+  clear-all
+  setup-ants
+  setup-patches
+end
+
+to setup-ants
+  create-turtles 100
+  ask turtles [set color red]
+  ask turtles [set shape "bug"]
+
+  ;Random start (in their home) for the ants
+  ask turtles [setxy (-(random 16)-(10)) (-(random 5)-(22))]
+end
+
+to setup-patches
   ;Load image file with color information
   import-pcolors "patch.png"
 
@@ -41,16 +56,6 @@ to patch-setup
   ]
 end
 
-to setup
-  clear-all
-  create-turtles 100
-  ask turtles [set color red]
-  ask turtles [set shape "bug"]
-  ; Random start (in their home) for the ants
-  ask turtles [setxy (-(random 16)-(10)) (-(random 5)-(22))]
-  patch-setup
-end
-
 to go
   update-ant
   update-patch
@@ -59,16 +64,12 @@ end
 to update-ant
   ask turtles
   [
-    ;Is this home?
-    if home?
-    [
-      set ant_ph_home 100
-      set patch_ph_home ant_ph_home
-    ]
+    ;We don't need to set home pheromones here because home always has 100 pheromones (with no reduction)
 
     ;Is here food?
     if food?
     [
+      ;Place food pheromones to indicate that food is here!
       set ant_ph_food 100
       set patch_ph_food ant_ph_food
     ]
@@ -93,6 +94,7 @@ to update-patch
   ask patches
   [
     ;Home has always maximum pheromones (there are always some invisible not food searching ants like the queen)
+    ;But there are no maximum pheromones for the food because the ants don't smell the food. They smell their own produced pheromones.
     if home?
     [
       set patch_ph_home 100
@@ -115,6 +117,7 @@ to update-patch
     if (show_food_pheromones = true and show_home_pheromones = false)
     or (show_food_pheromones = true and show_home_pheromones = true and patch_ph_food > patch_ph_home)
     [
+      ;Don't paint my walls, food and home!
       if not wall? and not food? and not home?
         [set pcolor 20 + ((patch_ph_food / 100) * 9)]
     ]
@@ -123,6 +126,7 @@ to update-patch
     if (show_food_pheromones = false and show_home_pheromones = true)
     or (show_food_pheromones = true and show_home_pheromones = true and patch_ph_food < patch_ph_home)
     [
+      ;Don't paint my walls, food and home!
       if not wall? and not food? and not home?
         [set pcolor 80 + ((patch_ph_home / 100) * 9)]
     ]
@@ -137,7 +141,6 @@ to update-patch
 end
 
 to search-home
-
   ;Am I home?
   ifelse home?
     ;then
@@ -159,11 +162,11 @@ to search-home
           set heading towards one-of neighbors with [home?]
 
           ;Wiggle less because home is near!
-          wiggle 15
+          wiggle 20
         ]
         ;else
         [
-          ;Declare the most left and the most right patch
+          ;Declare the patch on the left and the patch on the right of the ant
           let pleft patch-left-and-ahead 45 1
           let pright patch-right-and-ahead 45 1
 
@@ -171,31 +174,40 @@ to search-home
           if [patch_ph_home] of pright > [patch_ph_home] of pleft
             [set pleft pright]
 
-          ;Are on the left/right side more food pheromones than ahead?
+          ;Are on the left/right side more home pheromones than ahead?
           if [patch_ph_home] of pleft > [patch_ph_home] of patch-ahead 1
+            ;Look at the patch on the left/right because there are more pheromones
             [set heading towards pleft]
 
-          ;Are the home pheromones on the left/right side equal to the pheromones ahead?
+          ;Are the amount of home pheromones on the left/right side equal to the amount of home pheromones ahead?
           ifelse [patch_ph_home] of pleft = [patch_ph_home] of patch-ahead 1
             ;then
+            ;I changed my direction. Explore if this is the right way. (wiggle full)
             [wiggle 45]
             ;else
-            [wiggle 15]
+            ;The direction was not changed. So this should be the right way. (wiggle less)
+            [wiggle 20]
+
+          ;Don't run against the walls, buddy.
           check-walls
         ]
     ]
-  fd .75
 
-  ;Reduces the intensity of the food pheromones by Slider(reduce_intensity_by percent) of the strongest neighbor
-  set ant_ph_food [patch_ph_food] of max-one-of neighbors [patch_ph_food] * (1.0 - reduce_intensity_by)
+  ;After we checked all the possible cases of exploring, finding home and avoiding walls: Let's move!
+  fd .5
 
-  ;Less food pheromones on this patch than the ant sets?
+  ;Recalibrates the home pheromones set by the food-searching ant
+  ;If the ant is nearby the home track then the ant will also send out reduced pheromones based on the strongest neighbor
+  ;blur_pherom is the coefficient for the pheromone reduction of the current patch
+  ;Best value for blur_pherom: .97
+  set ant_ph_food [patch_ph_food] of max-one-of neighbors [patch_ph_food] * (blur_pherom)
+
+  ;Sets new food pheromones if less pheromones on this patch than the ant would set
   if patch_ph_food < ant_ph_food
     [set patch_ph_food ant_ph_food]
 end
 
 to search-food
-
   ;Is here food?
   ifelse food?
     ;then
@@ -217,11 +229,11 @@ to search-food
           set heading towards one-of neighbors with [food?]
 
           ;Wiggle less because there is food ahead!
-          wiggle 15
+          wiggle 20
         ]
         ;else
         [
-          ;Declare the most left and the most right patch
+          ;Declare the patch on the left and the patch on the right of the ant
           let pleft patch-left-and-ahead 45 1
           let pright patch-right-and-ahead 45 1
 
@@ -236,18 +248,28 @@ to search-food
           ;Are the food pheromones on the left/right side equal to the pheromones ahead?
           ifelse [patch_ph_food] of pleft = [patch_ph_food] of patch-ahead 1
             ;then
+            ;I changed my direction. Explore if this is the right way. (wiggle full)
             [wiggle 45]
+
             ;else
-            [wiggle 15]
+            ;The direction was not changed. So this should be the right way. (wiggle less)
+            [wiggle 20]
+
+          ;Don't run against the walls, buddy.
           check-walls
         ]
     ]
-  fd .75
 
-  ;Reduces the intensity of the home pheromones by Slider(reduce_intensity_by percent) of the strongest neighbor
-  set ant_ph_home [patch_ph_home] of max-one-of neighbors [patch_ph_home] * (1.0 - reduce_intensity_by)
+  ;After we checked all the possible cases of exploring, finding food and avoiding walls: Let's move!
+  fd .5
 
-  ;Less home pheromones on this patch than the ant sets?
+  ;Recalibrates the home pheromones set by the food-searching ant
+  ;If the ant is nearby the home track then the ant will also send out reduced pheromones based on the strongest neighbor
+  ;blur_pherom is the coefficient for the pheromone reduction of the current patch
+  ;Best value for blur_pherom: .97
+  set ant_ph_home [patch_ph_home] of max-one-of neighbors [patch_ph_home] * (blur_pherom)
+
+  ;Sets new home pheromones if less pheromones on this patch than the ant would set
   if patch_ph_home < ant_ph_home
     [set patch_ph_home ant_ph_home]
 end
@@ -257,19 +279,19 @@ to check-walls
   while [[wall?] of patch-ahead 1]
   [
     ;I don't know where to go. Maybe I'll go right (random = 0) or I'll just go left (random = 1). *thinking*
-    ifelse random 2 < 1
+    ifelse random 2 > 0
       ;then
-      ;Rotate right along this nice wall
-      [rt random 45]
-      ;else
       ;Rotate left along this nice wall
       [lt random 45]
+      ;else
+      ;Rotate right along this nice wall
+      [rt random 45]
   ]
 end
 
 to wiggle [angle]
-  rt random angle
   lt random angle
+  rt random angle
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -360,11 +382,11 @@ SLIDER
 277
 191
 310
-reduce_intensity_by
-reduce_intensity_by
-0.01
-0.05
-0.03
+blur_pherom
+blur_pherom
+0.96
+0.99
+0.97
 .01
 1
 NIL
