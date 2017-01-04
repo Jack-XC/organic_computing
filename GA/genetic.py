@@ -1,6 +1,7 @@
 import numpy as np
 import random as random
 from operator import itemgetter
+import time
 
 def mutation(x):
     if (random.random() <= 1.0/16.0):
@@ -36,15 +37,18 @@ for i in range(0, g_size):
     pop.append([x, y, z, f])
 
 gen = 0
-print mutation(np.int16(pow(2, random.randint(0, 16))))
-print mutation(-1)
+startTime = time.time()
+lastTime = startTime
 while(True):
     gen += 1
 
     parents = sorted(pop,key=itemgetter(3))[0:p_size]
-    print '####Gen',gen,'####'
-    print 'Minimum:', parents[0][3],'with x=', parents[0][0], 'y=',parents[0][1], 'z=', parents[0][2]
-    
+    if (gen <= 1 or time.time() - lastTime > 10):
+        print '####Gen',gen,'####'
+        print 'Minimum:', parents[0][3],'with x=', parents[0][0], 'y=',parents[0][1], 'z=', parents[0][2]
+        lastTime = time.time()
+        print 'Elapsed Time:', int(lastTime - startTime),'s'
+
     pop = []
     while (len(pop) < g_size):
         
