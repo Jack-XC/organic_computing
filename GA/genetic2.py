@@ -1,6 +1,8 @@
 import numpy as np
 import random as random
 from operator import itemgetter
+import math
+import time 
 
 def mutation(x):
     if (random.random() <= 1.0/16.0):
@@ -13,21 +15,29 @@ def crossover(x,y):
     b = np.int16((x & ~s) + (y & s))
     return [a, b]
 
-def fitness(x, y, z):
-    x = np.int64(x)
-    y = np.int64(y)
-    z = np.int64(z)
+def fitness(x16, y16, z16):
+    x = int(x16)
+    y = int(y16)
+    z = int(z16)
     k = 1
     i = -1
-    return 42 - k * x * y * np.int64(np.exp(x)) * y + i * x* y * y + k * np.int64(pow(z,x)) * i * np.int64(np.exp(z ))* x
-#    return 4 + x*x + y*y + z*z
-
+    try:
+        exp1 = math.exp(x*y)
+    except OverflowError:
+        return float('inf')
+    try:  
+        exp2 = math.exp(z*x)
+    except OverflowError:
+        return float('inf')
+    if z == 0 and x < 0:
+        return float('inf')
+    return 42 - k * x * y * int(exp1) + i * x * y**2 + k * z**x * i * int(exp2)
 
 random.seed()
 
 g_size = 10000
-p_size = 50
-mut = 0.1
+p_size = 500
+mut = 0.5
 pop = []
 
 #init
@@ -39,15 +49,18 @@ for i in range(0, g_size):
     pop.append([x, y, z, f])
 
 gen = 0
-print mutation(np.int16(pow(2, random.randint(0, 16))))
-print mutation(-1)
+startTime = time.time()
+lastTime = startTime
 while(True):
     gen += 1
 
     parents = sorted(pop,key=itemgetter(3))[0:p_size]
-    print '####Gen',gen,'####'
-    print 'Minimum:', parents[0][3],'with x=', parents[0][0], 'y=',parents[0][1], 'z=', parents[0][2]
-    
+    if (gen <= 1 or time.time() - lastTime > 10):
+        print '####Gen',gen,'####'
+        print 'Minimum:', parents[0][3],'with x=', parents[0][0], 'y=',parents[0][1], 'z=', parents[0][2]
+        lastTime = time.time()
+        print 'Elapsed Time:', int(lastTime - startTime),'s'
+
     pop = []
     while (len(pop) < g_size):
         
