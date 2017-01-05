@@ -15,12 +15,21 @@ def crossover(x,y):
     b = np.int16((x & ~s) + (y & s))
     return [a, b]
 
-def fitness(x16, y16, z16):
+def fitness(x16, y16, z16, kBool, iBool):
     x = int(x16)
     y = int(y16)
     z = int(z16)
-    k = 1
-    i = -1
+    
+    if kBool:
+        k = 1
+    else:
+        k = -1
+
+    if iBool:
+        i = 1
+    else:
+        i = -1
+
     try:
         exp1 = math.exp(x*y)
     except OverflowError:
@@ -45,8 +54,10 @@ for i in range(0, g_size):
     x = np.int16(random.randint(0, 10))
     y = np.int16(random.randint(0, 10))
     z = np.int16(random.randint(0, 10))
-    f = fitness(x, y, z)
-    pop.append([x, y, z, f])
+    k = bool(random.getrandbits(1))
+    i = bool(random.getrandbits(1))
+    f = fitness(x, y, z, k, i)
+    pop.append([x, y, z, k, i, f])
 
 gen = 0
 startTime = time.time()
@@ -57,7 +68,7 @@ while(True):
     parents = sorted(pop,key=itemgetter(3))[0:p_size]
     if (gen <= 1 or time.time() - lastTime > 10):
         print '####Gen',gen,'####'
-        print 'Minimum:', parents[0][3],'with x=', parents[0][0], 'y=',parents[0][1], 'z=', parents[0][2]
+        print 'Minimum:', parents[0][5],'with x =', parents[0][0], ' ,y =',parents[0][1], ', z =', parents[0][2], ', k =', parents[0][3],  ', i =', parents[0][4]
         lastTime = time.time()
         print 'Elapsed Time:', int(lastTime - startTime),'s'
 
@@ -75,16 +86,20 @@ while(True):
         x = crossover(p1[0], p2[0])
         y = crossover(p1[1], p2[1])
         z = crossover(p1[2], p2[2])
+        k =  [p1[3], p2[3]]
+        i =  [p1[4], p2[4]]
 
-        c1 = [x[random.randint(0, 1)], y[random.randint(0, 1)], z[random.randint(0, 1)], 0]
+        c1 = [x[random.randint(0, 1)], y[random.randint(0, 1)], z[random.randint(0, 1)], k[random.randint(0, 1)], i[random.randint(0, 1)], 0]
         
         if ( random.random() < mut ):
-            k = random.randint(0, 2)
-            c1[k] = mutation(c1[k])
+            k = random.randint(0, 4)
+            if k < 3:
+                c1[k] = mutation(c1[k])
+            else:
+                c1[k] = not c1[k]
 
-        c1[3] = fitness(c1[0], c1[1], c1[2])
+        c1[5] = fitness(c1[0], c1[1], c1[2], c1[3], c1[4])
 
         pop.append(c1)
 
-print parents
-print pop
+
