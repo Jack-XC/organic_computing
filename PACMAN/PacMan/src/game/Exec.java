@@ -8,6 +8,9 @@ import game.core.GameView;
 import game.core.Replay;
 import game.core._G_;
 import game.core._RG_;
+import game.player.ghost.GhostGroup3;
+import game.player.pacman.NearestPillPacMan;
+import game.player.pacman.RandomPacMan;
 
 import java.awt.event.ActionEvent;
 
@@ -27,8 +30,29 @@ public class Exec {
 		Exec exec = new Exec();
 
 		// this can be used for numerical testing (non-visual, no delays)
-		// exec.runExperiment(new RandomPacMan(),new
-		// AttractRepelGhosts(true),100);
+		
+		
+		/* GROUP 3 LEARNING PHASE 
+		String bestValueOverAll = "NONE";
+		// 1000 new starts
+		for(int k=0; k < 1000; ++k){
+			GhostGroup3 gg3 = new GhostGroup3();
+			// 1000 times makeChildren
+			for(int i=0; i < 1000; ++i){
+				exec.runExperiment(new NearestPillPacMan(),gg3,1);
+				gg3.learn();
+				bestValueOverAll = gg3.checkBest(bestValueOverAll,gg3.getBest());
+			}
+			System.out.println("++++ "+bestValueOverAll+" ++++");
+		}*/
+		
+		/* GROUP 3 FIGHT 1000 TIMES  
+		GhostGroup3 gg3 = new GhostGroup3();
+		for(int i=0; i < 1000; ++i){
+			exec.runExperiment(new NearestPillPacMan(),gg3,1);
+			System.out.println(gg3.savedScore);
+		}
+		*/
 
 		// run game without time limits (un-comment if required)
 		// exec.runGame(new RandomPacMan(),new RandomGhosts(),true,G.DELAY);
@@ -158,10 +182,10 @@ public class Exec {
 			}
 
 			avgScore += gameTmp.getScore();
-			System.out.println("Training "+training+++" Punkte: "+gameTmp.getScore());
+			//System.out.println("Training "+training+++" Punkte: "+gameTmp.getScore());
 		}
 
-		System.out.println("Gesamtpunkte/Versuche: "+avgScore+"/"+trials+" "+avgScore / trials);
+		//System.out.println("Gesamtpunkte/Versuche: "+avgScore+"/"+trials+" "+avgScore / trials);
 	}
 
 	/*
