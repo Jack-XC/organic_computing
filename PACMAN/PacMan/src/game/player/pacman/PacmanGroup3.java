@@ -27,7 +27,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 	int[] activePowerPills;
 
 	XCS xcs = null;
-
+	int count = 0;
 	@Override
 	public int getAction(Game game, long timeDue) {
 		int currentLoc = game.getCurPacManLoc();
@@ -35,7 +35,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		if (xcs == null) {
 			xcs = new XCS();
 		} else {
-			xcs.setReward(possibleReward(currentLoc, game));
+			int ret = xcs.setReward(possibleReward(currentLoc, game));
 		}
 
 		activePills = game.getPillIndicesActive();
@@ -46,12 +46,16 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			String state = getStateArray(currentLoc, game);
 			move = xcs.getAction(state, timeDue);
 		}
-
+		int i = 0;
+		for (Classifier c : xcs.population) {
+			//#System.out.println("Rule#"+ (i++) +": " + c.rule + ", " + c.p + ", " + c.e + ", " + c.F + ", " + c.accuracy + ", " + c.n + ", " + c.ts + ", " + c.action);
+		}
+		
 		return move;
 	}
 
 	private double possibleReward(int index, Game game) {
-		double q = 0.0;
+		double q = 100.0;
 		int score = game.getScore();
 		int remainingLives = game.getLivesRemaining();
 
@@ -81,16 +85,18 @@ public final class PacmanGroup3 extends AbstractPlayer {
 
 		int min = Integer.MAX_VALUE;
 		for (int i = 0; i < 4; ++i) {
-			int dist = game.getGhostPathDistance(i, index);
+			int dist = game.getPathDistance(index, game.getCurGhostLoc(i)); //game.getGhostPathDistance(i, index);
 			if (dist == 0)
 				continue;
-			if (min > dist) {
+			if (min > dist && dist >= 0) {
 				min = dist;
 			}
 		}
 
 		if (min < Math.pow(2, 6))
-			q = min;
+			q = q - 100* 1/Math.pow((1 + min),2);
+		
+		//#System.out.println("\u001B[34m Possible Reward" + q);
 
 		return q;
 	}
@@ -112,7 +118,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			// Integer.toBinaryString(dist)).replace(" ", "0");
 			// state += String.format("%2s",
 			// Integer.toBinaryString(direction)).replace(" ", "0");
-			// System.out.println("Ghost#"+i+" is going "+strDir[direction]);
+			// //#System.out.println("Ghost#"+i+" is going "+strDir[direction]);
 			// }
 			// else {
 			// state += "####";
@@ -122,7 +128,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		if (min < maxDist) {
 			state = String.format("%6s", Integer.toBinaryString(min)).replace(" ", "0");
 		} else
-			state = "######";
+			state = "111111";
 		/*
 		 * int[] dirArr = {0, 0, 0, 0}; int[] posDir =
 		 * game.getPossiblePacManDirs(false); for (int i = 0; i < 4; ++i) for
@@ -133,7 +139,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		 * int[] nb = game.getPacManNeighbours(); for (int j : nb)
 		 * System.out.print(j+","); System.out.print("\n");
 		 * 
-		 * for (int j : posDir) System.out.println(game.getNeighbour(index, j));
+		 * for (int j : posDir) //#System.out.println(game.getNeighbour(index, j));
 		 */
 
 		/*
@@ -144,10 +150,10 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		 * if (nearestPillIndex == -1) nearestPillIndex = nearestPowerIndex;
 		 * 
 		 * String temp = "##"; int pillDist = game.getPathDistance(index,
-		 * nearestPillIndex); //System.err.println("Pill:" + pillDist); for (int
+		 * nearestPillIndex); ////#System.err.println("Pill:" + pillDist); for (int
 		 * j : posDir) { int next = game.getNeighbour(index, j); int nextDist =
 		 * game.getPathDistance(next, nearestPillIndex);
-		 * //System.out.println("Next:" + nextDist); if (nextDist <= pillDist) {
+		 * ////#System.out.println("Next:" + nextDist); if (nextDist <= pillDist) {
 		 * temp = String.format("%2s", Integer.toBinaryString(j)).replace(" ",
 		 * "0"); break; } } state += temp;
 		 * 
@@ -202,8 +208,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 
 		public boolean equals(String o) {
 			if (this.rule.length() != o.length())
-				System.err.println(
-						"Error1: " + this.rule.length() + " vs " + o.length() + "-- " + this.rule + " || " + o);
+				//#System.err.println("Error1: " + this.rule.length() + " vs " + o.length() + "-- " + this.rule + " || " + o);
 			for (int i = 0; i < rule.length(); ++i) {
 				if (rule.charAt(i) != '#' && rule.charAt(i) != o.charAt(i))
 					return false;
@@ -246,7 +251,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int[] possibleActions = { 0, 1, 2, 3 };
 
 		// maximum population size
-		int N = 500;
+		int N = 100;
 
 		// used for GA
 		double GA_threshold = 35;
@@ -261,8 +266,8 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		double fracMeanFitness = 0.1;
 		double subThresh = 20;
 
-		double pHash = 0.33;
-		double pExplore = 0.01;
+		double pHash = 0.00;
+		double pExplore = 0.5;
 
 		double mnaThresh = 4;
 
@@ -311,15 +316,18 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			return action;
 		}
 
-		public void setReward(double rp) {
+		public int setReward(double rp) {
 			reward = rp; // reinforcement
 			if (!lastActionSet.isEmpty()) {
 				double best = Double.NEGATIVE_INFINITY;
+				//#System.out.println("~~~PA:");
 				for (doubool p : PA) {
 					if (p.isSet() && p.d > best) {
 						best = p.d;
+						//#System.out.println(p.d);
 					}
 				}
+				//#System.out.println("~~~");
 				double P = lastReward + discount * best;
 				updateSet(lastActionSet, P);
 				runGA(lastActionSet, lastRule);
@@ -327,6 +335,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			lastActionSet = (ArrayList<Classifier>) actionSet.clone();
 			lastReward = reward;
 			lastRule = rule;
+			return 0;
 		}
 
 		private void generateMatchingSet(String rule) {
@@ -363,7 +372,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 
 		private void generatePredictionArray() {
 			for (doubool p : PA) {
-				// System.err.println(p);
+				// //#System.err.println(p);
 				p.b = false;
 			}
 			double FSA[] = new double[possibleActions.length];
@@ -466,15 +475,21 @@ public final class PacmanGroup3 extends AbstractPlayer {
 					c.as = c.as + lRate * (sumCn - c.as);
 				}
 			}
+			//#System.err.println("=================");
+			//#System.err.println("++++Reward: "+ P);
 			updateFitness(actionSet);
+			//#System.err.println("==================");
 			if (doASSubsumption) {
-				doActionSetSubsumption();
+				doActionSetSubsumption(actionSet);
 			}
 		}
 
 		public void updateFitness(ArrayList<Classifier> actionSet) {
 			double sumAcc = 0.0;
 			for (Classifier c : actionSet) {
+				//#System.out.println("Payoff: "+ c.p);
+				//#System.err.println("------------------");
+				//#System.out.println("Check: "+ c.e + " < " + e0 + " == " + (c.e < e0)+ " ?? " + alpha * Math.pow(c.e / e0, -v));
 				c.accuracy = c.e < e0 ? 1.0 : alpha * Math.pow(c.e / e0, -v);
 				sumAcc = sumAcc + c.accuracy * c.n;
 			}
@@ -483,8 +498,61 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			}
 		}
 
-		public void doActionSetSubsumption() {
-
+		public void doActionSetSubsumption(ArrayList<Classifier> actionSet) {
+			Classifier cl = new Classifier();
+			for (Classifier c : actionSet) {
+				if (couldSubsume(c)) {
+					if (cl.rule.equals("") || countHash(c) > countHash(cl) || (countHash(c) == countHash(cl) && rng.nextDouble() < 0.5) ) {
+						cl = new Classifier(c);;
+						//#System.out.println(c + "  " + cl);
+					}
+				}
+			}
+			//#System.out.println(cl.rule + ", " + cl.p + ", " + cl.e + ", " + cl.F + ", " + cl.accuracy + ", " + cl.n + ", " + cl.ts + ", " + cl.action);
+			if (!cl.rule.equals("")) {
+				for (Classifier c : actionSet) {
+					if (isMoreGeneral(cl, c)) {
+						cl.n = cl.n + c.n;
+						actionSet.remove(c);
+						population.remove(c);
+					}
+				}
+			}
+		}
+		
+		public boolean couldSubsume(Classifier cl) {
+			if (cl.exp > subThresh && cl.e < e0)
+				return true;
+			return false;
+		}
+		
+		public boolean isMoreGeneral(Classifier clg, Classifier cls) {
+			if ( countHash(clg) <= countHash(cls))
+				return false;
+			int i = 0;
+			do {
+				if (clg.rule.charAt(i) != '#' && clg.rule.charAt(i) != cls.rule.charAt(i) ){
+					return false;
+				}
+				i++;
+			} while(i < clg.rule.length());
+			return true;
+		}
+		
+		public boolean doesSubsume(Classifier cls, Classifier clt) {
+			if (cls.action == clt.action) 
+				if (couldSubsume(cls))
+					if (isMoreGeneral(cls, clt))
+						return true;
+			return false;
+		}
+		
+		public int countHash(Classifier cl) {
+			int i = 0;
+			for( char c : cl.rule.toCharArray())
+				if ( c == '#' )
+					i++;
+			return i;
 		}
 
 		public void runGA(ArrayList<Classifier> actionSet, String rule) {
@@ -524,7 +592,18 @@ public final class PacmanGroup3 extends AbstractPlayer {
 					applyMutation(c1, rule);
 					applyMutation(c2, rule);
 					if (doGASubsumption) {
-
+						if (doesSubsume(p1, c1))
+							p1.n++;
+						else if (doesSubsume(p1, c1))
+							p2.n++;
+						else
+							insertInPopulation(c1);
+						if (doesSubsume(p1, c2))
+							p1.n++;
+						else if (doesSubsume(p1, c2))
+							p2.n++;
+						else
+							insertInPopulation(c2);
 					} else {
 						insertInPopulation(c1);
 						insertInPopulation(c2);
