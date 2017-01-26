@@ -18,7 +18,7 @@ public class Legacy extends AbstractGhost
 																							//for each ghost; last ghost takes random action
 		directions[3]=Game.rnd.nextInt(4);
 		
-		System.out.println(directions[0] + " " + directions[1]+ " " + directions[2]+ " " + directions[3]);
+		//System.out.println(directions[0] + " " + directions[1]+ " " + directions[2]+ " " + directions[3]);
 		return directions;
 	}
 
