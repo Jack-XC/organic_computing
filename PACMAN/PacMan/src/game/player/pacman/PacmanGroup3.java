@@ -39,8 +39,8 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			xcs = new XCS();
 		} else {
 			int ret = xcs.setReward(possibleReward(currentLoc, game));
-				if (count++ % 5000 == 0 && xcs.pExplore > 0.05) {
-					xcs.pExplore *= 0.97;
+				if (count++ % 5000 == 0 && xcs.pExplore > 0.001) {
+					//xcs.pExplore *= 0.9;
 				}
 		}
 
@@ -76,24 +76,23 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int nearestJunction = game.getTarget(index, game.getJunctionIndices(),true, G.DM.PATH);
 		int nearJuncDist = game.getPathDistance(index, nearestPowerIndex);
 
-		double reward = 10.0 * 1.0/Math.pow(1 + pillDist, 1);// + 10.0 * 1.0/(1 + powerPillDist );
+		double reward = 50.0 * 1.0/Math.pow(1 + pillDist, 2);// + 10.0 * 1.0/(1 + powerPillDist );
 		/*
 		double loss = 0.0; 
 		for ( int i = 0; i < 4; ++i) { 
 			if (game.isEdible(i)) { 
 				int dist = game.getPathDistance(index,game.getCurGhostLoc(i)); 
 				if (dist != -1) { 
-					reward += 200.0 * game.getEdibleTime(i)/Math.pow((1 + dist),2); 
+					reward += 200.0 * game.getEdibleTime(i)/(1 + dist); 
 				} 
 			}
 			else { 
 				int dist =  game.getGhostPathDistance(i, index); 
-				loss += 500.0 * 1.0/(1 + dist);
+				//loss += 500.0 * 1.0/Math.pow((1 + dist),2);
 			} 
 		}
 		q = reward - loss;
-		*/
-
+*/
 		int min = Integer.MAX_VALUE;
 		for (int i = 0; i < 4; ++i) {
 			int dist = game.getPathDistance(index, game.getCurGhostLoc(i)); // game.getGhostPathDistance(i,
@@ -106,8 +105,8 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		}
 
 		q += reward;
-		if (min < 16)
-			q *= (1 + min)/16;
+		if (min < -1)
+			q *= (1 + min)/32;
 
 		// #System.out.println("\u001B[34m Possible Reward" + q);
 
@@ -142,10 +141,12 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int[] nb = game.getPacManNeighbours();
 		if (dist >= 0) {
 			int[] path = game.getGhostPath(i, pacman);
-			int lastNode = path[path.length-1];
-			for (int j = 0; j < 4; j++)
-				if (lastNode == nb[j])
-					return j;
+			if (path.length > 0) {
+				int lastNode = path[path.length-1];
+				for (int j = 0; j < 4; j++)
+					if (lastNode == nb[j])
+						return j;
+			}
 		}
 		return -1;
 	}
@@ -208,15 +209,15 @@ public final class PacmanGroup3 extends AbstractPlayer {
 				state += getBinStr(dirGhost[i], 2) + (game.isEdible(i) ? 1 : 0);
 			else
 				state += "###";
-			if (distGhost[i] > -1 && distGhost[i] < 16)
+			/*if (distGhost[i] > -1 && distGhost[i] < 16)
 				state += getBinStr(distGhost[i], 4);
 			else 
-				state += "####";
+				state += "####";*/
 		}
 		//for (int m : distGhost)
 			//System.out.println(m);
 		
-		//System.out.println(state.length());
+		//System.out.println(state);
 		return state;
 	}
 
@@ -312,33 +313,33 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int[] possibleActions = { 0, 1, 2, 3 };
 
 		// maximum population size
-		int N = 2500;
+		int N = 450;
 
 		// used for GA
-		double GA_threshold = 25;
-		double GA_cross = 0.75;
-		double GA_mutate = 0.03;
+		double GA_threshold = 30;
+		double GA_cross = 0.85;
+		double GA_mutate = 0.035;
 
 		// used for multistep
 		double discount = 0.71;
 
 		//
-		double delThresh = 20;
-		double fracMeanFitness = 0.1;
+		double delThresh = 30;
+		double fracMeanFitness = 0.3;
 		double subThresh = 20;
 
-		double pHash = 0.1;
-		double pExplore = 0.5;
+		double pHash = 0.33;
+		double pExplore = 0.10;
 
 		double mnaThresh = 4;
 
 		// used for fitness
-		double e0 = 2; // thresholdError
+		double e0 = 100; // thresholdError
 		double alpha = 0.1;
 		double v = 5;
 
 		double threshold;
-		double lRate = 0.1;
+		double lRate = 0.5;
 
 		String rule = "";
 		String lastRule = "";
@@ -433,8 +434,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			for (int i = 0; i < rule.length(); ++i) {
 				cl.rule[i] = rng.nextDouble() < pHash ? '#' : rule.charAt(i);
 			}
-			HashSet<Integer> possible = (HashSet<Integer>) possibleActionSet
-					.clone();
+			HashSet<Integer> possible = (HashSet<Integer>) possibleActionSet.clone();
 			possible.removeAll(actions);
 			int action = (Integer) possible.toArray()[rng.nextInt(possible
 					.size())];
