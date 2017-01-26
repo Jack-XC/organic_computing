@@ -1,6 +1,8 @@
 package game.player.pacman;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
 
@@ -37,9 +39,9 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			xcs = new XCS();
 		} else {
 			int ret = xcs.setReward(possibleReward(currentLoc, game));
-			if (count++ % 5000 == 0 && xcs.pExplore > 0.05) {
-				xcs.pExplore *= 0.90;
-			}
+				if (count++ % 5000 == 0 && xcs.pExplore > 0.05) {
+					xcs.pExplore *= 0.97;
+				}
 		}
 
 		activePills = game.getPillIndicesActive();
@@ -61,36 +63,36 @@ public final class PacmanGroup3 extends AbstractPlayer {
 	}
 
 	private double possibleReward(int index, Game game) {
-		double q = 100.0;
+		double q = 0.0;
 		int score = game.getScore();
 		int remainingLives = game.getLivesRemaining();
 
-		int nearestPillIndex = game.getTarget(index, activePills, true,
-				G.DM.PATH);
+		int nearestPillIndex = game.getTarget(index, activePills, true, G.DM.PATH);
 		int pillDist = game.getPathDistance(index, nearestPillIndex);
 
-		int nearestPowerIndex = game.getTarget(index, activePowerPills, true,
-				G.DM.PATH);
+		int nearestPowerIndex = game.getTarget(index, activePowerPills, true,G.DM.PATH);
 		int powerPillDist = game.getPathDistance(index, nearestPowerIndex);
 
-		int nearestJunction = game.getTarget(index, game.getJunctionIndices(),
-				true, G.DM.PATH);
+		int nearestJunction = game.getTarget(index, game.getJunctionIndices(),true, G.DM.PATH);
 		int nearJuncDist = game.getPathDistance(index, nearestPowerIndex);
 
+		double reward = 10.0 * 1.0/Math.pow(1 + pillDist, 1);// + 10.0 * 1.0/(1 + powerPillDist );
 		/*
-		 * double reward = 15.0 * 1.0/(1 + pillDist);// + 200.0 * 1.0/(1 +
-		 * 2*powerPillDist );
-		 * 
-		 * double loss = 0.0; for ( int i = 0; i < 4; ++i) { if
-		 * (game.isEdible(i)) { int dist = game.getPathDistance(index,
-		 * game.getCurGhostLoc(i)); if (dist != -1) { reward += 200.0 *
-		 * game.getEdibleTime(i)/Math.pow((1 + dist),2); } } else { //int
-		 * juncDist = game.getGhostPathDistance(i, nearestJunction); int dist =
-		 * game.getGhostPathDistance(i, index); loss += 500.0 * 1.0/(1 + dist);
-		 * } }
-		 * 
-		 * q = reward - loss;
-		 */
+		double loss = 0.0; 
+		for ( int i = 0; i < 4; ++i) { 
+			if (game.isEdible(i)) { 
+				int dist = game.getPathDistance(index,game.getCurGhostLoc(i)); 
+				if (dist != -1) { 
+					reward += 200.0 * game.getEdibleTime(i)/Math.pow((1 + dist),2); 
+				} 
+			}
+			else { 
+				int dist =  game.getGhostPathDistance(i, index); 
+				loss += 500.0 * 1.0/(1 + dist);
+			} 
+		}
+		q = reward - loss;
+		*/
 
 		int min = Integer.MAX_VALUE;
 		for (int i = 0; i < 4; ++i) {
@@ -103,15 +105,52 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			}
 		}
 
-		if (min < Math.pow(2, 4))
-			q = 0.0;
+		q += reward;
+		if (min < 16)
+			q *= (1 + min)/16;
 
 		// #System.out.println("\u001B[34m Possible Reward" + q);
 
 		return q;
 	}
 
-	private String getStateArray(int index, Game game) {
+	private String getBinStr(int i, int n) {
+		String format = "%" + n + "s";
+		String ret = String.format(format, Integer.toBinaryString(i)).replace(" ", "0");
+		if (ret.length() > n)
+			System.err.println("Error2:" + i + " vs " + ret + " || " + ret.length() +" vs "+n);
+		return ret;
+	}
+	
+	private int directionTo(int to, Game game) {
+		int pacman = game.getCurPacManLoc();
+		int dist = game.getPathDistance(pacman, to);
+		int[] nb = game.getPacManNeighbours();
+		if (dist > 0) {
+			int[] path = game.getPath(pacman, to);
+			int firstNode = path.length >1 ? path[1] : path[0];
+			for (int j = 0; j < 4; j++)
+				if (firstNode == nb[j])
+					return j;
+		}
+		return -1;
+	}
+	
+	private int directionToGhost(int i, Game game) {
+		int pacman = game.getCurPacManLoc();
+		int dist = game.getPathDistance(pacman, game.getCurGhostLoc(i));
+		int[] nb = game.getPacManNeighbours();
+		if (dist >= 0) {
+			int[] path = game.getGhostPath(i, pacman);
+			int lastNode = path[path.length-1];
+			for (int j = 0; j < 4; j++)
+				if (lastNode == nb[j])
+					return j;
+		}
+		return -1;
+	}
+	
+	private String getStateArray(int pacPos, Game game) {
 		final int maxDist = (int) (Math.pow(2, 4) - 1);
 		String state = "";
 
@@ -119,93 +158,70 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int dir = -1;
 		int[] posDir = game.getPossiblePacManDirs(true);
 		int[] nb = game.getPacManNeighbours();
-		for (int i = 0; i < game.NUM_GHOSTS; ++i) {
-			// int dist = game.getGhostPathDistance(index,
-			// game.getCurGhostLoc(i));
-			int dist = game.getPathDistance(index, game.getCurGhostLoc(i));
-			if (dist >= 0) {
-				int[] path = game.getGhostPath(i, index);
-				int lastNode = path[path.length-1];
-				int direction = 0;
-				for (int j = 0; i < 4; i++)
-					if (lastNode == nb[j])
-						direction = j;
-				if (min > dist) {
-					min = dist;
-					dir = direction;
-				}
-			}
-			// state +=
-			// String.format("%4s",Integer.toBinaryString(dist)).replace(" ",
-			// "0");
-			// state +=
-			// String.format("%2s",Integer.toBinaryString(direction)).replace(" ",
-			// "0");
-			// #System.out.println("Ghost#"+i+" is going "+strDir[direction]);
-			// }
-			// else {
-			// state += "####";
-			// }
-			// state += game.isEdible(i) ? 1 : 0;
-		}
 		
-		if (min < maxDist) {
-			state = String.format("%2s", Integer.toBinaryString(dir)).replace(" ", "0");
-		} else
-			state = "##";
-
-		if ( state != null)
-			return state; 
+		for (int n : nb )
+			state+= n != -1 ? 1 : 0;
 		
-		int[] dirArr = { 0, 0, 0, 0 };
+		/*int[] dirArr = { 0, 0, 0, 0 };
 		for (int i = 0; i < 4; ++i)
 			for (int j : posDir)
 				if (i == j)
 					dirArr[i] = 1;
 		for (int i : dirArr)
 			state += i;
-
-		int nearestPillIndex = game.getTarget(index, activePills, true,
-				G.DM.PATH);
-		int nearestPowerIndex = game.getTarget(index, activePowerPills, true,
-				G.DM.PATH);
+		*/ 
+		int nearestPillIndex = game.getTarget(pacPos, activePills, true, G.DM.PATH);
+		int nearestPowerIndex = game.getTarget(pacPos, activePowerPills, true, G.DM.PATH);
 
 		if (nearestPillIndex == -1)
 			nearestPillIndex = nearestPowerIndex;
 
-		String temp = "##";
-		int pillDist = game.getPathDistance(index, nearestPillIndex);
-		for (int j : posDir) {
-			int next = game.getNeighbour(index, j);
-			int nextDist = game.getPathDistance(next, nearestPillIndex);
-			if (nextDist <= pillDist) {
-				temp = String.format("%2s", Integer.toBinaryString(j)).replace(" ", "0");
-				break;
-			}
-		}
-		state += temp;
+		int dirToPill = directionTo(nearestPillIndex, game);
+		state += dirToPill != -1 ? getBinStr(dirToPill, 2) : "##";
 
-		temp = "##";
-		if (nearestPowerIndex == -1) {
-			temp = "##";
-		} else {
-			int powerPillDist = game.getPathDistance(index, nearestPowerIndex);
-			for (int j : posDir) {
-				int next = game.getNeighbour(index, j);
-				int nextDist = game.getPathDistance(next, nearestPowerIndex);
-				if (nextDist <= powerPillDist) {
-					temp = String.format("%2s", Integer.toBinaryString(j)).replace(" ", "0");
-					break;
+		if (nearestPowerIndex != -1) {
+			dirToPill = directionTo(nearestPowerIndex, game);
+			state += dirToPill != -1 ? getBinStr(dirToPill, 2) : "##";
+		}
+		
+		int[] distGhost = new int[game.NUM_GHOSTS];
+		int[] dirGhost  = new int[game.NUM_GHOSTS];
+		for (int i = 0; i < game.NUM_GHOSTS; ++i) {
+			dirGhost[i] = directionToGhost(i, game);
+			distGhost[i] = game.getGhostPathDistance(i, pacPos);
+		}
+      for(int i=1 ; i < dirGhost.length ; i++ ) {
+          for(int j = dirGhost.length - 1 ; j >= i ; j--) {
+				if (distGhost[j - 1] > distGhost[j]) {
+					int temp = distGhost[j - 1];
+					distGhost[j - 1] = distGhost[j];
+					distGhost[j] = temp;
+					temp = dirGhost[j - 1];
+					dirGhost[j - 1] = dirGhost[j];
+					dirGhost[j] = temp;
 				}
 			}
 		}
-		state += temp;
-
+		
+		for (int i = game.NUM_GHOSTS - 1; i >= 0 ; --i) {
+			if (dirGhost[i] != -1) 
+				state += getBinStr(dirGhost[i], 2) + (game.isEdible(i) ? 1 : 0);
+			else
+				state += "###";
+			if (distGhost[i] > -1 && distGhost[i] < 16)
+				state += getBinStr(distGhost[i], 4);
+			else 
+				state += "####";
+		}
+		//for (int m : distGhost)
+			//System.out.println(m);
+		
+		//System.out.println(state.length());
 		return state;
 	}
 
 	class Classifier {
-		String rule = "";
+		char[] rule = new char[0];
 		double p; // payoff
 		double e; // error
 		double F; // fitness
@@ -228,6 +244,13 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			F = FI;
 		}
 
+		public Classifier(String r) {
+			this.rule = new char[r.length()];
+			p = pI;
+			e = eI;
+			F = FI;
+		}
+		
 		public Classifier(Classifier o) {
 			this.p = o.p;
 			this.e = o.e;
@@ -238,15 +261,17 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			this.exp = o.exp;
 			this.n = o.n;
 			this.action = o.action;
-			this.rule = o.rule;
+			//this.rule = new char[o.rule.length];
+			this.rule = o.rule.clone();
+			//System.out.println("Con1"+rule.length+ new String(this.rule));
 		}
 
 		public boolean equals(String o) {
-			if (this.rule.length() != o.length())
-				System.err.println("Error1: " + this.rule.length() + " vs "
-						+ o.length() + "-- " + this.rule + " || " + o);
-			for (int i = 0; i < rule.length(); ++i) {
-				if (rule.charAt(i) != '#' && rule.charAt(i) != o.charAt(i))
+			if (this.rule.length != o.length())
+				System.err.println("Error1: " + this.rule.length + " vs "
+						+ o.length() + "-- " + new String(this.rule) + " || " + o);
+			for (int i = 0; i < rule.length; ++i) {
+				if (rule[i] != '#' && rule[i] != o.charAt(i))
 					return false;
 			}
 			return true;
@@ -254,8 +279,8 @@ public final class PacmanGroup3 extends AbstractPlayer {
 
 		public boolean equals(Classifier o) {
 			boolean sameRule = true;
-			for (int i = 0; i < rule.length(); ++i) {
-				if (rule.charAt(i) != o.rule.charAt(i)) {
+			for (int i = 0; i < rule.length; ++i) {
+				if (rule[i] != o.rule[i]) {
 					sameRule = false;
 					break;
 				}
@@ -287,10 +312,10 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int[] possibleActions = { 0, 1, 2, 3 };
 
 		// maximum population size
-		int N = 1000;
+		int N = 2500;
 
 		// used for GA
-		double GA_threshold = 45;
+		double GA_threshold = 25;
 		double GA_cross = 0.75;
 		double GA_mutate = 0.03;
 
@@ -298,11 +323,11 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		double discount = 0.71;
 
 		//
-		double delThresh = 40;
+		double delThresh = 20;
 		double fracMeanFitness = 0.1;
 		double subThresh = 20;
 
-		double pHash = 0.33;
+		double pHash = 0.1;
 		double pExplore = 0.5;
 
 		double mnaThresh = 4;
@@ -313,13 +338,13 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		double v = 5;
 
 		double threshold;
-		double lRate = 0.3;
+		double lRate = 0.1;
 
 		String rule = "";
 		String lastRule = "";
 
-		boolean doASSubsumption = false;
-		boolean doGASubsumption = false;
+		boolean doASSubsumption = true;
+		boolean doGASubsumption = true;
 
 		double currentTime = 0.0;
 
@@ -404,9 +429,9 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		}
 
 		private Classifier covering(String rule, HashSet<Integer> actions) {
-			Classifier cl = new Classifier();
+			Classifier cl = new Classifier(rule);
 			for (int i = 0; i < rule.length(); ++i) {
-				cl.rule += rng.nextDouble() < pHash ? "#" : rule.charAt(i);
+				cl.rule[i] = rng.nextDouble() < pHash ? '#' : rule.charAt(i);
 			}
 			HashSet<Integer> possible = (HashSet<Integer>) possibleActionSet
 					.clone();
@@ -551,12 +576,11 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			Classifier cl = new Classifier();
 			for (Classifier c : actionSet) {
 				if (couldSubsume(c)) {
-					if (cl.rule.equals("")
+					if (cl.rule.length == 0
 							|| countHash(c) > countHash(cl)
 							|| (countHash(c) == countHash(cl) && rng
 									.nextDouble() < 0.5)) {
 						cl = new Classifier(c);
-						;
 						// #System.out.println(c + "  " + cl);
 					}
 				}
@@ -564,11 +588,11 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			// #System.out.println(cl.rule + ", " + cl.p + ", " + cl.e + ", " +
 			// cl.F + ", " + cl.accuracy + ", " + cl.n + ", " + cl.ts + ", " +
 			// cl.action);
-			if (!cl.rule.equals("")) {
+			if (cl.rule.length > 0) {
 				for (Classifier c : actionSet) {
 					if (isMoreGeneral(cl, c)) {
 						cl.n = cl.n + c.n;
-						actionSet.remove(c);
+						//actionSet.remove(c);
 						population.remove(c);
 					}
 				}
@@ -586,12 +610,12 @@ public final class PacmanGroup3 extends AbstractPlayer {
 				return false;
 			int i = 0;
 			do {
-				if (clg.rule.charAt(i) != '#'
-						&& clg.rule.charAt(i) != cls.rule.charAt(i)) {
+				if (clg.rule[i] != '#'
+						&& clg.rule[i] != cls.rule[i]) {
 					return false;
 				}
 				i++;
-			} while (i < clg.rule.length());
+			} while (i < clg.rule.length);
 			return true;
 		}
 
@@ -605,7 +629,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 
 		public int countHash(Classifier cl) {
 			int i = 0;
-			for (char c : cl.rule.toCharArray())
+			for (char c : cl.rule)
 				if (c == '#')
 					i++;
 			return i;
@@ -671,10 +695,9 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		}
 
 		public void applyCrossover(Classifier c1, Classifier c2) {
-			int x = rng.nextInt(c1.rule.length());
-			int y = rng.nextInt(c2.rule.length());
-			char[] char1 = c1.rule.toCharArray();
-			char[] char2 = c2.rule.toCharArray();
+			//System.out.println(c1.rule.length);
+			int x = rng.nextInt(c1.rule.length);
+			int y = rng.nextInt(c2.rule.length);
 			if (x > y) {
 				int temp = x;
 				x = y;
@@ -684,30 +707,26 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			char temp;
 			do {
 				if (x <= i && i < y) {
-					temp = char1[i];
-					char1[i] = char2[i];
-					char2[i] = temp;
+					temp = c1.rule[i];
+					c1.rule[i] = c2.rule[i];
+					c2.rule[i] = temp;
 				}
 				++i;
 			} while (i < y);
-			c1.rule = new String(char1);
-			c2.rule = new String(char2);
 		}
 
 		public void applyMutation(Classifier c, String rule) {
-			char[] charArray = c.rule.toCharArray();
 			for (int i = 0; i < rule.length(); ++i) {
 				if (rng.nextDouble() < GA_mutate) {
-					if (charArray[i] == '#')
-						charArray[i] = rule.charAt(i);
+					if (c.rule[i] == '#')
+						c.rule[i] = rule.charAt(i);
 					else
-						charArray[i] = '#';
+						c.rule[i] = '#';
 				}
 			}
 			if (rng.nextDouble() < GA_mutate) {
 				c.action = possibleActions[rng.nextInt(possibleActions.length)];
 			}
-			c.rule = new String(charArray);
 		}
 
 		public Classifier selectOffspring(ArrayList<Classifier> actionSet) {
