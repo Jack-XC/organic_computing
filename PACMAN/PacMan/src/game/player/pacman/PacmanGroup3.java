@@ -37,7 +37,9 @@ public final class PacmanGroup3 extends AbstractPlayer {
 
 	XCS xcs = null;
 	int count = 0;
-
+	int nearestPillIndex;
+	int nearestPowerIndex;
+	
 	@Override
 	public int getAction(Game game, long timeDue) {
 		int currentLoc = game.getCurPacManLoc();
@@ -45,16 +47,20 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		if (xcs == null) {
 			xcs = new XCS();
 		} else {
-			 //int ret = xcs.setReward(possibleReward(currentLoc, game));
+			
+			//int ret = xcs.setReward(possibleReward(currentLoc, game));
 			int ret = xcs.setReward(getBetterReward(game));
+			//xcs.setReward(reward(game, currentLoc));
 			if (count++ % 5000 == 0 && xcs.pExplore > 0.001) {
-				//xcs.pExplore *= 0.9;
+				xcs.pExplore *= 0.9;
 			}
 		}
 
 		activePills = game.getPillIndicesActive();
 		activePowerPills = game.getPillIndicesActive();
-
+		nearestPillIndex = game.getTarget(currentLoc, activePills, true, G.DM.PATH);
+		nearestPowerIndex = game.getTarget(currentLoc, activePowerPills, true, G.DM.PATH);
+		
 		int move = 0;
 		if (currentLoc > -1) {
 			String state = getStateArray(currentLoc, game);
@@ -70,9 +76,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		//0 = take pill, 1 = take powerPill, 2 = goToGhost, 3 = flewFromGhost;
 		
 		int pacPos = game.getCurPacManLoc();
-		
-		int nearestPillIndex = game.getTarget(pacPos, activePills, true, G.DM.PATH);
-		int nearestPowerIndex = game.getTarget(pacPos, activePowerPills, true, G.DM.PATH);
+
 		int[] distGhost = new int[game.NUM_GHOSTS];
 		int[] dirGhost = new int[game.NUM_GHOSTS];
 		int dirToPill = -1;
@@ -126,12 +130,11 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int[] orderedDirectionToGhost = new int[Game.NUM_GHOSTS];
 
 		double reward = 0;
-		int pillCount = game.getPillIndicesActive().length;
-		int powerPillCount = game.getPowerPillIndicesActive().length;
+		int pillCount = activePills.length;
+		int powerPillCount = activePowerPills.length;
 		int pacLoc = game.getCurPacManLoc();
 		int pacDir = game.getCurPacManDir();
 
-		int nearestPillIndex = game.getTarget(pacLoc, activePills, true, G.DM.PATH);
 		int nextPillDir = -1;
 		if (nearestPillIndex != -1) {
 			nextPillDir = directionTo(nearestPillIndex, game);
@@ -207,22 +210,19 @@ public final class PacmanGroup3 extends AbstractPlayer {
 
 		return reward;
 	}
-
+	
 	private double possibleReward(int index, Game game) {
 		double q = 0.0;
 		int score = game.getScore();
 		int remainingLives = game.getLivesRemaining();
 
-		int nearestPillIndex = game.getTarget(index, activePills, true, G.DM.PATH);
 		int pillDist = game.getPathDistance(index, nearestPillIndex);
-
-		int nearestPowerIndex = game.getTarget(index, activePowerPills, true, G.DM.PATH);
 		int powerPillDist = game.getPathDistance(index, nearestPowerIndex);
 
 		int nearestJunction = game.getTarget(index, game.getJunctionIndices(), true, G.DM.PATH);
 		int nearJuncDist = game.getPathDistance(index, nearestPowerIndex);
 
-		double reward = 50.0 * 1.0 / Math.pow(1 + pillDist, 2);
+		double reward = 10.0 * 1.0 / Math.pow(1 + pillDist, 2);
 		 
 		int min = Integer.MAX_VALUE;
 		for (int i = 0; i < 4; ++i) {
@@ -296,8 +296,6 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		 * int[] dirArr = { 0, 0, 0, 0 }; for (int i = 0; i < 4; ++i) for (int j
 		 * : posDir) if (i == j) dirArr[i] = 1; for (int i : dirArr) state += i;
 		 */
-		int nearestPillIndex = game.getTarget(pacPos, activePills, true, G.DM.PATH);
-		int nearestPowerIndex = game.getTarget(pacPos, activePowerPills, true, G.DM.PATH);
 
 		if (nearestPillIndex == -1)
 			nearestPillIndex = nearestPowerIndex;
@@ -309,6 +307,8 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			dirToPill = directionTo(nearestPowerIndex, game);
 			state += dirToPill != -1 ? getBinStr(dirToPill, 2) : "##";
 		}
+		else 
+			state += "##";
 
 		int[] distGhost = new int[game.NUM_GHOSTS];
 		int[] dirGhost = new int[game.NUM_GHOSTS];
@@ -344,7 +344,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		// for (int m : distGhost)
 		// System.out.println(m);
 
-		// System.out.println(state);
+	    if (state.length() != 36) System.out.println(state + " " + state.length());
 		return state;
 	}
 
@@ -473,18 +473,18 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int[] possibleActions = { 0, 1, 2, 3 };
 
 		// maximum population size
-		int N = 450;
+		int N = 100;
 
 		// used for GA
-		double GA_threshold = 300;
+		double GA_threshold = 30;
 		double GA_cross = 0.85;
-		double GA_mutate = 0.035;
+		double GA_mutate = 0.01;
 
 		// used for multistep
 		double discount = 0.71;
 
 		//
-		double delThresh = 500;
+		double delThresh = 35;
 		double fracMeanFitness = 0.3;
 		double subThresh = 20;
 
@@ -499,7 +499,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		double v = 5;
 
 		double threshold;
-		double lRate = 0.5;
+		double lRate = 0.4;
 
 		String rule = "";
 		String lastRule = "";
