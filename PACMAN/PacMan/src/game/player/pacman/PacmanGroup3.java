@@ -80,7 +80,12 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int powerPillCount = game.getPowerPillIndicesActive().length;
 		int pacLoc = game.getCurPacManLoc();
 		int pacDir = game.getCurPacManDir();
-		int nextPillDir = directionToNextPill(game);
+
+		int nearestPillIndex = game.getTarget(pacLoc, activePills, true, G.DM.PATH);
+		int nextPillDir = -1;
+		if (nearestPillIndex != -1) {
+			nextPillDir = directionTo(nearestPillIndex, game);
+		}
 
 		boolean noNextPillBonus = true;
 
@@ -110,13 +115,13 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			if (ghostDistance < GHOST_DISTANCE_CRITERIUM && ghostDistance != 0) {
 				if (!game.isEdible(orderedGhosts[i])
 						&& (pacDir == orderedDirectionToGhost[i] || game.getCurPacManDir() == 4)) {
-					reward = reward - (30 - 5 * i) ;
+					reward = reward - (30 - 5 * i);
 					noNextPillBonus = false;
 				} else if (!game.isEdible(orderedGhosts[i]) && pacDir != orderedDirectionToGhost[i]
 						&& game.getCurPacManDir() != 4) {
-					reward = reward + (20 - 5*i);
+					reward = reward + (20 - 5 * i);
 				} else if (game.isEdible(orderedGhosts[i]) && pacDir == orderedDirectionToGhost[i]) {
-					reward = reward + (20 - 5*i);
+					reward = reward + (20 - 5 * i);
 				} else {
 
 				}
@@ -129,8 +134,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			reward = reward + 5;
 		}
 
-		if (lastPillCount == pillCount && lastPowerPillCount == powerPillCount
-				&& noNextPillBonus) {
+		if (lastPillCount == pillCount && lastPowerPillCount == powerPillCount && noNextPillBonus) {
 			if (pacDir == nextPillDir && lastPacmanDirection != game.getReverse(pacDir))
 				reward = reward + 15;
 			else if (lastPacmanDirection != game.getReverse(pacDir))
@@ -328,53 +332,10 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		if (nextNode != -1) {
 			path = game.getPath(curPos, nextNode);
 			if (path.length >= 2) {
-				return getDirectionToNeighboringNode(game, path[1]);
+				return directionTo(path[1], game);
 			}
 			if (path.length >= 1 && path[0] != nextNode) {
-				return getDirectionToNeighboringNode(game, nextNode);
-			}
-		}
-		return -1;
-	}
-
-	protected int getDirectionToNeighboringNode(Game game, int nodeTo) {
-		int[] pacmanNeighbors = game.getPacManNeighbours();
-		for (int i = 0; i < pacmanNeighbors.length; i++) {
-			if (pacmanNeighbors[i] == nodeTo) {
-				return i;
-			}
-		}
-		return -1;
-	}
-
-	protected int directionToNextPowerPill(Game game) {
-		int currentPosition = game.getCurPacManLoc();
-		int[] allNodesWithPills = game.getPowerPillIndices();
-
-		double minDistanceToPill = Double.POSITIVE_INFINITY;
-		;
-		int nextNode = -1;
-		for (int i = 0; i < allNodesWithPills.length; i++) {
-			int pillIndexForNode = game.getPowerPillIndex(allNodesWithPills[i]);
-			if (!game.checkPowerPill(pillIndexForNode)) {
-				allNodesWithPills[i] = -1;
-			} else {
-
-				if (minDistanceToPill > game.getManhattenDistance(currentPosition, allNodesWithPills[i])) {
-					minDistanceToPill = game.getManhattenDistance(currentPosition, allNodesWithPills[i]);
-					nextNode = allNodesWithPills[i];
-
-				}
-			}
-		}
-		int[] path = null;
-		if (nextNode != -1) {
-			path = game.getPath(currentPosition, nextNode);
-			if (path.length >= 2) {
-				return getDirectionToNeighboringNode(game, path[1]);
-			}
-			if (path.length >= 1 && path[0] != nextNode) {
-				return getDirectionToNeighboringNode(game, nextNode);
+				return directionTo(nextNode, game);
 			}
 		}
 		return -1;
