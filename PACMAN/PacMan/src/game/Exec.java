@@ -10,7 +10,7 @@ import game.core._G_;
 import game.core._RG_;
 import game.player.ghost.AttractRepelGhosts;
 import game.player.ghost.Legacy;
-import game.player.pacman.PacmanGroup3;
+import game.player.pacman.PacmanGroup3XCS2;
 
 import java.awt.event.ActionEvent;
 
@@ -29,7 +29,7 @@ public class Exec {
 	public static void main(String[] args) {
 		Exec exec = new Exec();
 		
-		PacmanGroup3 p3 = new PacmanGroup3();
+		PacmanGroup3XCS2 p3 = new PacmanGroup3XCS2();
 		 
 		//exec.runExperiment(p3, new Legacy(), 1000);
 

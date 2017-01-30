@@ -9,11 +9,11 @@ import game.core.Game;
 import game.core.Game.DM;
 import gui.AbstractPlayer;
 
-public final class PacmanGroup3 extends AbstractPlayer {
+public final class PacmanGroup3XCS2 extends AbstractPlayer {
 
 	@Override
 	public String getGroupName() {
-		return "Pacman Group 3 - XCS";
+		return "Pacman Group 3 - XCS2";
 	}
 
 	int currentScore = 0;
@@ -39,7 +39,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 	int count = 0;
 	int nearestPillIndex;
 	int nearestPowerIndex;
-	
+
 	@Override
 	public int getAction(Game game, long timeDue) {
 		int currentLoc = game.getCurPacManLoc();
@@ -47,10 +47,10 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		if (xcs == null) {
 			xcs = new XCS();
 		} else {
-			
-			//int ret = xcs.setReward(possibleReward(currentLoc, game));
+
+			// int ret = xcs.setReward(possibleReward(currentLoc, game));
 			int ret = xcs.setReward(getBetterReward(game));
-			//xcs.setReward(reward(game, currentLoc));
+			// xcs.setReward(reward(game, currentLoc));
 			if (count++ % 5000 == 0 && xcs.pExplore > 0.001) {
 				xcs.pExplore *= 0.9;
 			}
@@ -60,7 +60,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		activePowerPills = game.getPillIndicesActive();
 		nearestPillIndex = game.getTarget(currentLoc, activePills, true, G.DM.PATH);
 		nearestPowerIndex = game.getTarget(currentLoc, activePowerPills, true, G.DM.PATH);
-		
+
 		int move = 0;
 		if (currentLoc > -1) {
 			String state = getStateArray(currentLoc, game);
@@ -70,17 +70,16 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int action = interpretAction(move, game);
 		return action;
 	}
-	
 
-	private int interpretAction(int metaAction, Game game ){
-		//0 = take pill, 1 = take powerPill, 2 = goToGhost, 3 = flewFromGhost;
-		
+	private int interpretAction(int metaAction, Game game) {
+		// 0 = take pill, 1 = take powerPill, 2 = goToGhost, 3 = flewFromGhost;
+
 		int pacPos = game.getCurPacManLoc();
 
 		int[] distGhost = new int[game.NUM_GHOSTS];
 		int[] dirGhost = new int[game.NUM_GHOSTS];
 		int dirToPill = -1;
-		
+
 		for (int i = 0; i < game.NUM_GHOSTS; ++i) {
 			dirGhost[i] = directionToGhost(i, game);
 			distGhost[i] = game.getGhostPathDistance(i, pacPos);
@@ -97,30 +96,31 @@ public final class PacmanGroup3 extends AbstractPlayer {
 				}
 			}
 		}
-		
-		switch(metaAction) {
-		case(0):
+
+		switch (metaAction) {
+		case (0):
 			if (nearestPillIndex == -1)
 				nearestPillIndex = nearestPowerIndex;
 			dirToPill = directionTo(nearestPillIndex, game);
 			return dirToPill != -1 ? dirToPill : game.getCurPacManDir();
-		case(1):
-			if (nearestPowerIndex != -1) 
+		case (1):
+			if (nearestPowerIndex != -1)
 				dirToPill = directionTo(nearestPowerIndex, game);
 			return dirToPill != -1 ? dirToPill : game.getCurPacManDir();
-		case(2):
+		case (2):
 			for (int i = game.NUM_GHOSTS - 1; i >= 0; --i) {
 				if (distGhost[i] > -1)
-					return dirGhost[i]; 
+					return dirGhost[i];
 			}
 			return game.getCurPacManDir();
-		case(3):
+		case (3):
 			for (int i = game.NUM_GHOSTS - 1; i >= 0; --i) {
 				if (distGhost[i] > -1)
-					return dirGhost[i]; 
+					return dirGhost[i];
 			}
 			return game.getCurPacManDir();
-			default: return game.getCurPacManDir();
+		default:
+			return game.getCurPacManDir();
 		}
 	}
 
@@ -168,11 +168,11 @@ public final class PacmanGroup3 extends AbstractPlayer {
 			if (ghostDistance < GHOST_MAX_DIST && ghostDistance != 0) {
 				if (!game.isEdible(orderedGhosts[i])
 						&& (pacDir == orderedDirectionToGhost[i] || game.getCurPacManDir() == 4)) {
-					reward = reward - (30 - 5 * i);
+					reward = reward - (50 - 5 * i);
 					noNextPillBonus = false;
 				} else if (!game.isEdible(orderedGhosts[i]) && pacDir != orderedDirectionToGhost[i]
 						&& game.getCurPacManDir() != 4) {
-					reward = reward + (20 - 5 * i);
+					reward = reward + (40 - 5 * i);
 				} else if (game.isEdible(orderedGhosts[i]) && pacDir == orderedDirectionToGhost[i]) {
 					reward = reward + (20 - 5 * i);
 				} else {
@@ -210,7 +210,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 
 		return reward;
 	}
-	
+
 	private double possibleReward(int index, Game game) {
 		double q = 0.0;
 		int score = game.getScore();
@@ -223,7 +223,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int nearJuncDist = game.getPathDistance(index, nearestPowerIndex);
 
 		double reward = 10.0 * 1.0 / Math.pow(1 + pillDist, 2);
-		 
+
 		int min = Integer.MAX_VALUE;
 		for (int i = 0; i < 4; ++i) {
 			int dist = game.getPathDistance(index, game.getCurGhostLoc(i)); // game.getGhostPathDistance(i,
@@ -306,8 +306,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		if (nearestPowerIndex != -1) {
 			dirToPill = directionTo(nearestPowerIndex, game);
 			state += dirToPill != -1 ? getBinStr(dirToPill, 2) : "##";
-		}
-		else 
+		} else
 			state += "##";
 
 		int[] distGhost = new int[game.NUM_GHOSTS];
@@ -344,7 +343,8 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		// for (int m : distGhost)
 		// System.out.println(m);
 
-	    if (state.length() != 36) System.out.println(state + " " + state.length());
+		if (state.length() != 36)
+			System.out.println(state + " " + state.length());
 		return state;
 	}
 
@@ -473,12 +473,12 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		int[] possibleActions = { 0, 1, 2, 3 };
 
 		// maximum population size
-		int N = 100;
+		int N = 400;
 
 		// used for GA
 		double GA_threshold = 30;
 		double GA_cross = 0.85;
-		double GA_mutate = 0.01;
+		double GA_mutate = 0.0;
 
 		// used for multistep
 		double discount = 0.71;
@@ -488,8 +488,8 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		double fracMeanFitness = 0.3;
 		double subThresh = 20;
 
-		double pHash = 0.33;
-		double pExplore = 0.10;
+		double pHash = 0.1;
+		double pExplore = 0.35;
 
 		double mnaThresh = 4;
 
@@ -499,7 +499,7 @@ public final class PacmanGroup3 extends AbstractPlayer {
 		double v = 5;
 
 		double threshold;
-		double lRate = 0.4;
+		double lRate = 0.8;
 
 		String rule = "";
 		String lastRule = "";
